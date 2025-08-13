@@ -144,7 +144,7 @@ def create_comparative_plots(times_avant: np.ndarray, data_avant: np.ndarray,
                            times_apres: np.ndarray, data_apres: np.ndarray, 
                            title: str, ylabel: str, is_percentage: bool = False) -> None:
     """
-    Crée les graphiques comparatifs pour deux jeux de données
+    Crée les graphiques comparatifs pour deux jeux de données (reproduction exacte du code original)
     
     Args:
         times_avant: Temps avant optimisation
@@ -162,9 +162,16 @@ def create_comparative_plots(times_avant: np.ndarray, data_avant: np.ndarray,
     ax1.plot(times_apres, data_apres, 'g-', label='Après optimisation', linewidth=1.5, alpha=0.8)
     
     if is_percentage:
+        # Pour les pourcentages - lignes de référence spéciales
         ax1.axhline(y=100, color='blue', linestyle='--', alpha=0.6, label='Optimal (100%)')
-        ax1.axhline(y=75, color='red', linestyle='--', alpha=0.6, label='Critical (75%)')
+        ax1.axhline(y=75, color='red', linestyle='--', alpha=0.6, label='critical (75%)')
         ax1.set_ylim(0, 105)
+    else:
+        # Pour les capteurs - lignes de moyennes
+        ax1.axhline(y=np.mean(data_avant), color='red', linestyle='--', alpha=0.6, 
+                   label=f'Moy. Avant: {np.mean(data_avant):.2f}')
+        ax1.axhline(y=np.mean(data_apres), color='green', linestyle='--', alpha=0.6,
+                   label=f'Moy. Après: {np.mean(data_apres):.2f}')
     
     ax1.set_title(f'Évolution {title}', fontweight='bold', fontsize=12)
     ax1.set_xlabel('Temps (minutes)')
@@ -175,62 +182,147 @@ def create_comparative_plots(times_avant: np.ndarray, data_avant: np.ndarray,
     # 2. Histogrammes comparatifs
     if is_percentage:
         bins = np.linspace(0, 100, 21)
+        hist_title = 'Distribution des Pourcentages'
     else:
-        bins = 30
+        bins = np.linspace(min(np.min(data_avant), np.min(data_apres)), 
+                          max(np.max(data_avant), np.max(data_apres)), 25)
+        hist_title = f'Distribution des % de bouteilles lues ({title.split("(")[-1].replace(")", "")})'
     
     ax2.hist(data_avant, bins=bins, alpha=0.6, color='red', label='Avant', density=True)
     ax2.hist(data_apres, bins=bins, alpha=0.6, color='green', label='Après', density=True)
     ax2.axvline(np.mean(data_avant), color='red', linestyle='--', linewidth=2)
     ax2.axvline(np.mean(data_apres), color='green', linestyle='--', linewidth=2)
-    ax2.set_title(f'Distribution {title}', fontweight='bold', fontsize=12)
-    ax2.set_xlabel(ylabel)
+    ax2.set_title(hist_title, fontweight='bold', fontsize=12)
+    
+    if is_percentage:
+        ax2.set_xlabel('Pourcentage de bouteilles lues (%)')
+    else:
+        ax2.set_xlabel('Pourcentage de bouteilles lues (%)')
+    
     ax2.set_ylabel('Densité')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
-    # 3. Box plots
+    # 3. Box plots avec quartiles (reproduction exacte)
     box_data = [data_avant, data_apres]
     bp = ax3.boxplot(box_data, labels=['Avant', 'Après'], patch_artist=True, showmeans=True)
+    
+    # Couleurs des boîtes
     bp['boxes'][0].set_facecolor('red')
+    bp['boxes'][0].set_alpha(0.6)
     bp['boxes'][1].set_facecolor('green')
-    bp['boxes'][0].set_alpha(0.7)
-    bp['boxes'][1].set_alpha(0.7)
-    ax3.set_title(f'Box Plot {title}', fontweight='bold', fontsize=12)
-    ax3.set_ylabel(ylabel)
+    bp['boxes'][1].set_alpha(0.6)
+    
+    # Ajout des valeurs des quartiles sur le graphique (comme dans l'original)
+    for i, data in enumerate(box_data):
+        q1 = np.percentile(data, 25)
+        q2 = np.percentile(data, 50)  # médiane
+        q3 = np.percentile(data, 75)
+        mean_val = np.mean(data)
+        
+        # Position x pour les annotations
+        x_pos = i + 1
+        
+        # Annotations des quartiles
+        if is_percentage:
+            ax3.text(x_pos + 0.15, q1, f'Q1: {q1:.1f}%', fontsize=9, va='center', ha='left')
+            ax3.text(x_pos + 0.15, q2, f'Med: {q2:.1f}%', fontsize=9, va='center', ha='left', fontweight='bold')
+            ax3.text(x_pos + 0.15, q3, f'Q3: {q3:.1f}%', fontsize=9, va='center', ha='left')
+            ax3.text(x_pos + 0.15, mean_val, f'Moy: {mean_val:.1f}%', fontsize=9, va='center', ha='left', 
+                     bbox=dict(boxstyle="round,pad=0.2", facecolor="yellow", alpha=0.7))
+        else:
+            ax3.text(x_pos + 0.15, q1, f'Q1: {q1:.3f}', fontsize=9, va='center', ha='left')
+            ax3.text(x_pos + 0.15, q2, f'Med: {q2:.3f}', fontsize=9, va='center', ha='left', fontweight='bold')
+            ax3.text(x_pos + 0.15, q3, f'Q3: {q3:.3f}', fontsize=9, va='center', ha='left')
+            ax3.text(x_pos + 0.15, mean_val, f'Moy: {mean_val:.3f}', fontsize=9, va='center', ha='left', 
+                     bbox=dict(boxstyle="round,pad=0.2", facecolor="yellow", alpha=0.7))
+    
+    ax3.set_title('Comparaison des Distributions', fontweight='bold', fontsize=12)
+    if is_percentage:
+        ax3.set_ylabel('Pourcentage (%)')
+    else:
+        ax3.set_ylabel('Pourcentage de bouteilles lues (%)')
     ax3.grid(True, alpha=0.3)
     
-    # 4. Graphique de corrélation/dispersion
-    if len(data_avant) == len(data_apres):
-        ax4.scatter(data_avant, data_apres, alpha=0.6, s=20)
-        # Ligne de référence y=x
-        min_val = min(np.min(data_avant), np.min(data_apres))
-        max_val = max(np.max(data_avant), np.max(data_apres))
-        ax4.plot([min_val, max_val], [min_val, max_val], 'r--', alpha=0.8, label='y=x')
-        ax4.set_xlabel('Avant optimisation')
-        ax4.set_ylabel('Après optimisation')
-        ax4.set_title('Corrélation Avant vs Après', fontweight='bold', fontsize=12)
+    # 4. Graphique spécialisé selon le type
+    if is_percentage:
+        # Pour les pourcentages: Barres comparatives par catégories (comme dans l'original)
+        categories = ['0-65%', '65-70%', '70-75%', '75-80%', '80-85%', '85-90%', '90-95%', '95-100%']
+        
+        def calc_time_in_categories(data):
+            return [
+                np.sum(data < 65) / len(data) * 100,
+                np.sum((data >= 65) & (data < 70)) / len(data) * 100,
+                np.sum((data >= 70) & (data < 75)) / len(data) * 100,
+                np.sum((data >= 75) & (data < 80)) / len(data) * 100,
+                np.sum((data >= 80) & (data < 85)) / len(data) * 100,
+                np.sum((data >= 85) & (data < 90)) / len(data) * 100,
+                np.sum((data >= 90) & (data < 95)) / len(data) * 100,
+                np.sum(data >= 95) / len(data) * 100  # 95-100% (inclut 100%)
+            ]
+        
+        time_avant_cat = calc_time_in_categories(data_avant)
+        time_apres_cat = calc_time_in_categories(data_apres)
+        
+        x = np.arange(len(categories))
+        width = 0.35
+        
+        bars1 = ax4.bar(x - width/2, time_avant_cat, width, label='Avant', color='red', alpha=0.7)
+        bars2 = ax4.bar(x + width/2, time_apres_cat, width, label='Après', color='green', alpha=0.7)
+        
+        ax4.set_title('Temps Passé par Catégorie (5% incréments)', fontweight='bold', fontsize=12)
+        ax4.set_xlabel('Catégories de Pourcentage')
+        ax4.set_ylabel('Temps (%)')
+        ax4.set_xticks(x)
+        ax4.set_xticklabels(categories, rotation=45)  # Rotation pour meilleure lisibilité
         ax4.legend()
         ax4.grid(True, alpha=0.3)
-    else:
-        # Si les longueurs sont différentes, afficher un graphique de moyennes mobiles
-        window = min(100, len(data_avant) // 10)
-        if window > 1:
-            rolling_avant = np.convolve(data_avant, np.ones(window)/window, mode='valid')
-            rolling_apres = np.convolve(data_apres, np.ones(window)/window, mode='valid')
-            ax4.plot(rolling_avant, 'r-', label=f'Moyenne mobile Avant (fenêtre={window})', alpha=0.8)
-            ax4.plot(rolling_apres, 'g-', label=f'Moyenne mobile Après (fenêtre={window})', alpha=0.8)
-        else:
-            ax4.axhline(np.mean(data_avant), color='red', label='Moyenne Avant', linewidth=2)
-            ax4.axhline(np.mean(data_apres), color='green', label='Moyenne Après', linewidth=2)
         
-        ax4.set_title('Moyennes mobiles', fontweight='bold', fontsize=12)
-        ax4.set_xlabel('Index')
-        ax4.set_ylabel(ylabel)
-        ax4.legend()
+        # Ajout des valeurs sur les barres
+        for bars in [bars1, bars2]:
+            for bar in bars:
+                height = bar.get_height()
+                ax4.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                        f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+    else:
+        # Pour les capteurs: Analyse de la variabilité dans le temps (comme dans l'original)
+        window_size = max(10, len(data_avant) // 50)  # Fenêtre adaptative
+        
+        def rolling_std(data, window):
+            """Calcule l'écart-type sur fenêtre glissante"""
+            rolling_stds = []
+            for i in range(len(data) - window + 1):
+                rolling_stds.append(np.std(data[i:i+window]))
+            return np.array(rolling_stds)
+        
+        if len(data_avant) > window_size and len(data_apres) > window_size:
+            std_avant = rolling_std(data_avant, window_size)
+            std_apres = rolling_std(data_apres, window_size)
+            
+            time_window_avant = times_avant[window_size-1:]
+            time_window_apres = times_apres[window_size-1:]
+            
+            ax4.plot(time_window_avant, std_avant, 'r-', label='Stabilité Avant', linewidth=1.5, alpha=0.8)
+            ax4.plot(time_window_apres, std_apres, 'g-', label='Stabilité Après', linewidth=1.5, alpha=0.8)
+            
+            ax4.axhline(y=np.mean(std_avant), color='red', linestyle='--', alpha=0.6,
+                       label=f'Moy. Stab. Avant: {np.mean(std_avant):.4f}')
+            ax4.axhline(y=np.mean(std_apres), color='green', linestyle='--', alpha=0.6,
+                       label=f'Moy. Stab. Après: {np.mean(std_apres):.4f}')
+            
+            ax4.set_title(f'Stabilité dans le Temps (fenêtre {window_size} pts, ou 2%)', fontweight='bold', fontsize=12)
+            ax4.set_xlabel('Temps (minutes)')
+            ax4.set_ylabel('Écart-type local')
+            ax4.legend()
+        else:
+            ax4.text(0.5, 0.5, 'Pas assez de données\npour l\'analyse de stabilité', 
+                    transform=ax4.transAxes, ha='center', va='center', fontsize=12)
+            ax4.set_title('Analyse de Stabilité')
+        
         ax4.grid(True, alpha=0.3)
     
-    plt.suptitle(f'ANALYSE COMPARATIVE - {title}', fontsize=14, fontweight='bold')
     plt.tight_layout()
+    plt.suptitle(f'ANALYSE COMPARATIVE - {title}', fontsize=16, fontweight='bold', y=1.02)
     plt.show()
 
 
